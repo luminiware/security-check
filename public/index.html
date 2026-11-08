@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow"><meta name="description" content="Entenda observações de segurança do seu website e os próximos passos para melhorar.">
+  <title>Security Check · Luminiware</title>
+  <link rel="stylesheet" href="/styles.css"><script type="module" src="/app.js"></script>
+</head>
+<body>
+  <a href="#main" class="skip">Ir para o conteúdo</a>
+  <header class="topbar"><a class="brand" href="/security" aria-label="Luminiware, início"><span class="brand-mark" aria-hidden="true">L</span> luminiware<span class="brand-dot">.</span></a><span class="header-label">SECURITY CHECK <span class="version">MVP</span></span></header>
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="eyebrow"><span class="status-dot" aria-hidden="true"></span> UM PRIMEIRO OLHAR PARA O SEU SITE</div>
+      <h1 id="hero-title">Entenda os sinais.<br><span>Saiba por onde começar.</span></h1>
+      <p class="intro">Uma leitura de segurança do seu website, com explicações claras e prioridades para agir. Gratuito, sem login e sem contato obrigatório.</p>
+      <div class="scope"><span>HTTP e HTTPS</span><span>Certificado TLS</span><span>Headers</span><span>DNS</span></div>
+    </section>
+    <section class="workspace" aria-labelledby="analysis-title">
+      <div class="workspace-head"><span class="step">01 / DIAGNÓSTICO</span><span class="small-tag">OBSERVAÇÕES EXTERNAS</span></div>
+      <h2 id="analysis-title">Qual site vamos analisar?</h2>
+      <p class="muted">Somente o website público. Sem exploração, acesso autenticado ou testes na infraestrutura interna.</p>
+      <div id="mode-notice" class="notice" role="status">Verificando disponibilidade…</div>
+      <form id="analysis-form" novalidate>
+        <label for="target">Domínio do site</label>
+        <div class="input-row"><div class="domain-input"><span aria-hidden="true">↗</span><input id="target" name="target" autocomplete="url" inputmode="url" placeholder="example.com" maxlength="2048" aria-describedby="target-help target-error" required></div><button id="analyze-button" type="submit" disabled>Analisar site <span aria-hidden="true">→</span></button></div>
+        <p id="target-help" class="field-hint">Informe apenas o domínio, sem caminhos ou parâmetros.</p>
+        <p id="normalized" class="normalized" hidden>Alvo: <strong id="normalized-value"></strong>. Confirme em “Analisar site”.</p>
+        <div id="scenario-field" hidden><label for="scenario">Cenário sintético</label><select id="scenario"><option value="complete">Completo · duas prioridades</option><option value="partial">Parcial · cobertura de 95%</option><option value="insufficient">Cobertura insuficiente · sem nota</option><option value="inconclusive">Falha de coleta · inconclusivo</option><option value="tls-failure">Falha de identidade TLS</option></select></div>
+        <div id="turnstile"></div>
+        <p id="target-error" class="error" role="alert"></p>
+      </form>
+      <div class="boundary"><span aria-hidden="true">ⓘ</span><p>Este diagnóstico cobre verificações limitadas. Ele não substitui uma auditoria e não garante que o site seja seguro.</p></div>
+    </section>
+    <section id="job-panel" class="workspace" hidden aria-labelledby="job-heading" aria-live="polite">
+      <div class="workspace-head"><span class="step">02 / RESULTADO</span><span id="job-state" class="small-tag"></span></div>
+      <h2 id="job-heading" tabindex="-1">Na fila</h2><p id="job-meta" class="muted"></p><p id="job-progress"></p>
+      <p id="poll-error" class="error" role="alert"></p><button id="resume" class="secondary" hidden>Retomar consulta</button>
+      <div id="report" hidden>
+        <div class="score-row"><div class="score-block"><strong id="score"></strong><span id="score-caption"></span></div><div class="coverage-block"><span class="step">COBERTURA DAS REGRAS DA NOTA</span><strong id="coverage"></strong><progress id="coverage-meter" max="100" value="0" aria-label="Cobertura das regras da nota"></progress><span id="report-label" class="muted"></span></div></div>
+        <p id="score-message" class="notice" hidden></p><p id="disclaimer" class="boundary"></p>
+        <div class="section-title"><h3>Por onde começar</h3><span>ATÉ 3 PRIORIDADES</span></div><div id="priorities"></div>
+        <div id="limitations-wrap" hidden><h3>Limites desta análise</h3><ul id="limitations"></ul></div>
+        <details id="technical"><summary>Todas as verificações e evidências</summary><p class="muted">Versões da coleta e interpretação</p><pre id="report-versions" class="evidence"></pre><h3>Coleta por verificação</h3><p class="muted">DNS não recebe peso. Se sua coleta falhar, a nota não é exibida.</p><div id="collection-checks"></div><h3>Interpretação das regras</h3><div id="evaluations"></div></details>
+        <div id="help"><div><span class="step">PRÓXIMO PASSO</span><h3>Precisa de ajuda para corrigir?</h3><p class="muted">Podemos avaliar o diagnóstico e conversar sobre o escopo. Seu resultado continua disponível aqui.</p></div><button id="open-lead" class="secondary">Pedir ajuda <span aria-hidden="true">↗</span></button></div>
+        <form id="lead-form" hidden novalidate>
+          <p class="notice">Demonstração: use somente os dados sintéticos abaixo. Nada será enviado ao HubSpot.</p>
+          <label for="lead-email">E-mail para contato</label><input id="lead-email" type="email" value="pessoa@example.com" maxlength="254" required>
+          <label for="lead-name">Nome (opcional)</label><input id="lead-name" value="Pessoa de exemplo" maxlength="100" readonly>
+          <label for="lead-intention">Como podemos ajudar? (opcional)</label><textarea id="lead-intention" maxlength="1000" readonly>Solicitação sintética de ajuda</textarea>
+          <label class="check-label"><input id="lead-consent" type="checkbox" required><span>Autorizo registrar meu contato e o resumo deste diagnóstico para responder ao pedido de ajuda. Nesta demonstração, o registro é apenas local e sintético. Não há inscrição em marketing.</span></label>
+          <button type="submit" id="send-lead">Registrar pedido sintético</button><p id="lead-status" role="status"></p>
+        </form>
+      </div>
+      <div class="job-actions"><button id="new-analysis" class="secondary">Nova análise</button><button id="delete-analysis" class="text-button">Excluir dados deste diagnóstico</button></div>
+    </section>
+    <section class="how"><div><span class="step">01</span><h3>Observamos</h3><p>Verificações externas selecionadas, dentro de um escopo definido.</p></div><div><span class="step">02</span><h3>Explicamos</h3><p>Evidência, cobertura e limites para entender o que foi encontrado.</p></div><div><span class="step">03</span><h3>Priorizamos</h3><p>Até três pontos acionáveis, com recomendações para o próximo passo.</p></div></section>
+  </main>
+  <footer><span>© Luminiware · Tecnologia com propósito.</span><span>Sem login. Sem contato obrigatório.</span></footer>
+</body>
+</html>

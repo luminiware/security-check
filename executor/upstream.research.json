@@ -1,0 +1,15 @@
+{
+  "status": "proposto-para-validacao",
+  "production_pin_approved": false,
+  "repository": "https://github.com/Lissy93/web-check",
+  "research_revision": "fd08be81f700254214ef49d093e71a991567841f",
+  "release": "2.4.0",
+  "image": "ghcr.io/lissy93/web-check",
+  "index_digest": "sha256:3f46c4fdc6c41aac57b6e1965b6afaf4d19239ececdc7b4c12a89211890eaec8",
+  "amd64_digest": "sha256:ce8c90602e533bb3f45bc0e445a6c02040190a49e1d4e85389492dcb3a2b9c6d",
+  "arm64_digest": "sha256:06a222c7f8cd223d1ff643a088a6a4ace9fecac9a2c012912ad41fcbbc02811b",
+  "manifest_observed_on": "2026-11-07",
+  "allowed_checks_candidate": ["headers", "http-security", "ssl", "dns"],
+  "explicitly_disabled": ["get-ip"],
+  "pending": ["G1-pin-review", "G1-native-arm64", "G2-egress-guardian", "G3-production-benchmark"]
+}

@@ -97,7 +97,7 @@ A mensagem transporta só referência canônica e política, nunca contato/capab
   "job_id": "analysis_demo_01",
   "target": "https://example.com/",
   "allowed_checks": ["headers", "http-security", "ssl", "dns"],
-  "policy_version": "network-v0-proposal",
+  "policy_version": "network-v1-proposal",
   "deadline_at": "2026-11-08T12:05:00Z"
 }
 ```
@@ -142,36 +142,51 @@ Token de lease guardado como hash em D1. Callback autenticado não dispensa toke
 ```json
 {
   "schema_version": "1",
-  "job_id": "analysis_demo_01",
-  "attempt_id": "attempt_demo_01",
-  "engine": {"name": "web-check", "revision": "synthetic-revision", "image_digest": "synthetic-digest"},
-  "policy_version": "network-v0-proposal",
-  "rules_version": "score-v0-proposal",
-  "result_version": "normalized-v1-proposal",
+  "job_id": "00000000-0000-4000-8000-000000000001",
+  "attempt_id": "00000000-0000-4000-8000-000000000002",
+  "engine": {"name": "web-check", "revision": "synthetic-only", "image_digest": "synthetic-only"},
+  "policy_version": "network-v1-proposal",
+  "rules_version": "score-v1-proposal",
+  "result_version": "normalized-v2-proposal",
   "duration_ms": 4200,
   "checks": [
     {
       "id": "headers",
       "collection": "ok",
       "observed_at": "2026-11-08T12:00:04Z",
-      "evidence": {"target": "https://example.com/", "http_status": 200, "hsts_present": false},
-      "classification": "confirmado",
+      "evidence": {"target": "https://example.com/", "peer_verified": true, "http_status": 200, "interstitial": false, "final_https": true, "headers": {"x-content-type-options": "nosniff", "referrer-policy": "strict-origin-when-cross-origin"}},
       "errors": [],
       "duration_ms": 400
     },
     {
+      "id": "http-security",
+      "collection": "ok",
+      "observed_at": "2026-11-08T12:00:04Z",
+      "evidence": {"target": "https://example.com/", "peer_verified": true, "http_reaches_https": true},
+      "errors": [],
+      "duration_ms": 1000
+    },
+    {
+      "id": "ssl",
+      "collection": "ok",
+      "observed_at": "2026-11-08T12:00:04Z",
+      "evidence": {"target": "https://example.com/", "peer_verified": true, "identity_valid": true, "valid_from": "2026-11-01T00:00:00Z", "valid_to": "2027-11-01T00:00:00Z"},
+      "errors": [],
+      "duration_ms": 1000
+    },
+    {
       "id": "dns",
       "collection": "timeout",
+      "observed_at": "2026-11-08T12:00:04Z",
       "evidence": null,
-      "classification": "inconclusivo",
-      "errors": [{"code": "CHECK_TIMEOUT", "retryable": true}],
+      "errors": ["CHECK_TIMEOUT"],
       "duration_ms": 3800
     }
   ]
 }
 ```
 
-Exemplo reduzido: todos os checks previstos precisam constar no retorno real, mesmo como `não_executado`. Token de tentativa é cabeçalho secreto, não campo persistido em evidência. Worker verifica conjunto exato, alvo, versões pinadas para o job, timestamps plausíveis, bytes, cardinalidade e tipos. Desconhecidos rejeitam o callback; evidência inválida não vira achado. Worker normaliza significado, recalcula cobertura, classificação final e scoring; não aceita nota enviada pelo executor. TLS inválido pode ser dado útil, mas jamais autoriza baixar conteúdo arbitrário sob um contexto de transporte considerado válido.
+Exemplo sintético do contrato proposto: todos os checks previstos precisam constar no retorno real, mesmo como `não_executado`. Classificação e nota são calculadas pelo Worker e não são aceitas no callback. `final_https` descreve a resposta de headers efetivamente observada, independentemente do esquema informado na entrada. Token de tentativa é cabeçalho secreto, não campo persistido em evidência. Worker verifica conjunto exato, alvo, versões pinadas e suportadas, timestamps plausíveis, bytes, cardinalidade e tipos. Desconhecidos rejeitam o callback; evidência inválida não vira achado. TLS inválido pode ser dado útil, mas jamais autoriza baixar conteúdo arbitrário sob um contexto de transporte considerado válido.
 
 Callbacks iguais da mesma tentativa/hash retornam aceite idempotente, inclusive após terminal, sem mutação. Mesmo ID com hash diferente retorna 409. Resultado de tentativa antiga ou fora do prazo retorna conflito/expirado e não altera terminal. Executor dá ack a mensagens já terminais após confirmação autoritativa, para não repetir scan.
 
@@ -287,3 +302,39 @@ Fontes de custo: Worker, D1 reads/writes/storage, Queue writes/reads/deletes/ret
 A documentação consultada confirma disponibilidade de Queues com HTTP pull em Workers Free e franquia limitada; **não** confirma a conta, consumo futuro ou custo zero do conjunto. Cotar Oracle/Hetzner na região e data do deploy, incluindo impostos/câmbio/extras. Valores históricos da fonte S1 não são preços atuais deste PR. Nenhum provisionamento foi feito.
 
 Expandir somente quando espera/p95, erros, pressão CPU/RAM ou quotas justificarem e margem/conversão sustentarem gasto. Primeiro comparar redimensionar VM versus segundo executor; manter contrato de jobs. Cloud Run/Containers continuam adiados. O prazo histórico de 1–2 dias de tentativa Oracle é ilustrativo, não requisito/SLA.
+
+## 7. Correspondência com a implementação experimental
+
+Status: código para revisão, conforme [ADR-006](decisions/006-implementacao-experimental.md). O inventário de testes e lacunas por requisito está em [implementação](implementation.md). Não altera os status Decidido/Proposto/Pendente acima.
+
+| Arquivo | Responsabilidade implementada | Limite |
+|---|---|---|
+| `public/` | Entrada, confirmação visual do alvo, polling, relatório, evidências, CTA e consentimento | Modo local sintético; nenhuma coleta no browser |
+| `src/worker.js` | Roteamento, sessão/cookie, Origin, autorização, API interna e tratamento de erros | Admissão pública fechada; Siteverify ainda desconectado do caminho real |
+| `src/store.js` | Admissão D1, outbox, CAS/lease, resultado idempotente e reconciliação | Parâmetros locais; fila real e falhas de conta não validadas |
+| `migrations/` | Jobs, tentativas, quotas, eventos, leads e aliases de idempotência | Migrações locais; sem recurso remoto |
+| `src/report.js` | Validação estrita, cobertura, fórmula e prioridades | Semântica v1 proposta; não aceita nota externa |
+| `src/leads.js`, `src/hubspot.js` | Persistência consentida, dedup, intenção durável e transporte configurável | Sem mapeamento aprovado; scheduler não envia CRM |
+| `executor/` | Cliente pull/ack, claim/callback, runner/guardião por job e adaptação do upstream | Configuração/resolução públicas e revisão P2 pendentes; CLI bloqueia execução |
+
+Extensões propostas: `GET /api/v1/config` emite sessão anônima e retorna disponibilidade; `DELETE /api/v1/analyses/{id}` exige a mesma sessão e Origin, remove o job e dependências ativas. Exclusão CRM/backup continua G8. GET autorizado após retenção recebe 410 enquanto há tombstone; acesso não autorizado recebe 404. Não há busca pública nem cache de relatórios.
+
+`lead_requests` vincula cada alias de chave à sessão, hash do corpo e lead existente. Isso preserva idempotência mesmo quando duas chaves resultam no mesmo pedido semântico por job/e-mail. Trigger de admissão atualiza quotas e evento na mesma transação; trigger de claim grava tentativa junto com a reserva; trigger de terminal grava evento junto com o resultado. Resultado simultâneo idêntico recebe aceite após releitura autoritativa. Reconciliação limita transições e limpeza por tick, sem republicar jobs vencidos.
+
+As quotas candidatas distinguem sessão, domínio registrável (PSL incluindo sufixos privados), hostname e orçamento global. A reserva diária é atômica; esgotamento do orçamento resulta em 503, enquanto limite por visitante/domínio resulta em 429. Os valores e a política de pseudônimo rotativo ainda são P7. O módulo experimental de endereços valida ranges IANA, respostas mistas, CNAME/TTL e peer reservado por funções puras. Não executa DNS nem impõe firewall e, portanto, não satisfaz G2.
+
+A configuração candidata do upstream precisa tanto de `API_ENABLED_CHECKS` quanto de `API_DISABLED_CHECKS=get-ip`: no commit pesquisado há exceção explícita para `get-ip`. Somente os quatro handlers selecionados são invocados nos testes isolados. Eles não substituem o guardião: `headers` perde status do alvo, `http-security` não prova transporte HTTP→HTTPS, e DNS mascara algumas falhas em arrays vazios.
+
+Candidato P2: [ADR-007](decisions/007-guardiao-candidato.md) e [guardião](guardian.md) descrevem regras nftables com peers exatos, expiração e quotas, DNS que não encaminha consultas, DNAT restrito do resolver Docker e separação de privilégios/segredos. O desenho possui laboratório isolado; não está conectado à admissão pública ou ao runner de produção e não comprova os itens restantes de G2.
+
+Em 08/11/2026, [runner](runner.md) passou a controlar namespaces/contêineres por UUID e prazo, com imagens imutáveis, health check, retorno filtrado e leitura do estado nftables antes/depois do trabalho. Um watchdog separado recebe UUID/prazo, caminho temporário próprio e acesso de controle Docker; não recebe as credenciais da aplicação nem as transmite ao motor. A remoção confere ownership, mata o motor antes do guardião e é idempotente sob corridas. Reaper por labels recupera recursos vencidos. O laboratório local une esses mecanismos ao claim/result D1, com ack simulado, e exercita OOM e perda do processo supervisor; conta Cloudflare e recuperação na VM permanecem G4.
+
+O [resolvedor candidato](resolver.md) usa TCP para um IP público literal configurado, valida CNAME/A/AAAA e TTL e rejeita respostas mistas. Não usa resolução implícita do host ou fallback. Há testes puros e transporte DNS em loopback de contêiner sem rede; configuração, ligação ao runner público e origem operacional continuam P2. Isso não substitui prova por conexão ou encerra G2.
+
+O [adaptador HTTP candidato](http-adapter.md), Proposto no [ADR-008](decisions/008-adaptador-http-limitado.md), fornece fetch ao coletor antes dos handlers, sem alterar arquivos upstream. Limita redirects e body decodificado, preserva status/interstitial e observa HTTP→HTTPS. O contrato intermediário `workload-v1-proposal` acrescenta `http` por check; validação estrita antecede a normalização para o callback versionado da seção 3. O controle no processo não substitui o firewall, cgroups ou revisão P2/P5/P6/P7. Ensaios com CA sintética ficam isolados em contêiner sem rede; o runner comum mantém TLS original.
+
+A normalização atual é `normalized-v2-proposal`: headers exigem `final_https` booleano; a avaliação usa essa observação, sem inferir HTTPS pelo esquema da entrada. Callbacks legados ou políticas/regras/resultados não suportados são rejeitados. O relatório inclui versões derivadas do job (motor/digest/política/regras/normalização), disponíveis nos detalhes técnicos. Propostas e parâmetros continuam sujeitos à revisão.
+
+`score-v1-proposal` preserva a fórmula/pesos e explicita elegibilidade DNS em P6: sem coleta DNS útil, nota nula, rótulo parcial e limitação, mesmo com todas as regras ponderadas avaliáveis. Os detalhes exibem estado/evidência das quatro coletas. As [métricas locais](metrics.md) usam o rótulo real para contar parciais, separam modos/coortes e calculam p50/p95 a partir de janelas persistidas; não criam novo serviço ou histórico comercial permanente.
+
+`network-v1-proposal` acrescenta [IPv6 candidato](ipv6.md): interface/endereços/vizinhos derivados do kernel, NDP restrito e contabilizado, expiração dos conjuntos de controle, dados TCP vinculados também ao endereço local e descarte de fragmentos em prerouting -450. O snapshot exige os objetos adicionais. Cada peer usa a rota de maior prefixo e menor métrica; rotas ambíguas, dependentes de origem, rejeitadas ou por interface diferente impedem prontidão. O único gateway selecionado ganha função NDP, sem exceção TCP/UDP. O laboratório aceita RFC3849 somente em redes internas sem IPv4/default route; a política pública continua recusando essa faixa e serviços privados. Há 21 casos on-link e nove roteados por gateway com rotas específicas; tráfego público/PMTU, policy routing/VRF, VM e revisão P2/P5/P7 continuam pendentes.

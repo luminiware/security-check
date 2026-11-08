@@ -22,3 +22,5 @@ Default-deny, isolamento sem privilégios, orçamento de bytes/tempo/CPU/RAM e c
 ## Revisão
 
 Check sem proteção demonstrável fica bloqueado/inconclusivo, com revisão de cobertura e produto. Se a restrição externa for inviável, registrar incompatibilidade e buscar mudança upstream antes de lançar. G2 é obrigatório, não satisfeito por documentação ou configuração de hostname. Ver [arquitetura §5](../architecture.md), P2 e [scoring](../spec.md).
+
+Evolução experimental: [ADR-007](007-guardiao-candidato.md) descreve candidato com namespace/DNS/nftables e laboratório isolado. Continua Proposto; não substitui esta decisão nem encerra P2/G2.

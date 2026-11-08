@@ -1,0 +1,10 @@
+import { mkdirSync, mkdtempSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { spawnSync, spawn } from 'node:child_process';
+const root = resolve('.wrangler/ui'); mkdirSync(root, { recursive: true });
+const persistence = mkdtempSync(join(root, 'run-'));
+const common = ['scripts/wrangler.mjs'];
+const migrated = spawnSync(process.execPath, [...common, 'd1','migrations','apply','security-check','--local','--persist-to',persistence], { stdio: 'inherit' });
+if (migrated.status !== 0) process.exit(migrated.status || 1);
+const server = spawn(process.execPath, [...common,'dev','--local','--ip','127.0.0.1','--port','8877','--persist-to',persistence], { stdio: 'inherit' });
+server.on('exit', code => { process.exitCode = code ?? 1; });

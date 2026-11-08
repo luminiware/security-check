@@ -1,0 +1,4 @@
+**
+!tests/
+!tests/docker/
+!tests/docker/routed-entry.mjs

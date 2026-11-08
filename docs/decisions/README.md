@@ -9,5 +9,8 @@ Contexto comum: [S1 e S2](../sources.md), consulta em 07/11/2026. Aceita signifi
 | [003](003-executor-e-fallback.md) | Condicional / fallback decidido | Oracle e migração Hetzner |
 | [004](004-escopo-e-rede.md) | Decidido; implementação pendente | Escopo passivo e isolamento de rede |
 | [005](005-execucao-duravel.md) | Decidido; protocolo proposto | Assincronia, idempotência e estado externo |
+| [006](006-implementacao-experimental.md) | Proposto; implementação experimental | Validação local e bloqueios de produção |
+| [007](007-guardiao-candidato.md) | Proposto; laboratório isolado | Namespace, DNS reservado e firewall nftables |
+| [008](008-adaptador-http-limitado.md) | Proposto; ensaio HTTP isolado | Adaptador externo de fetch, redirects, status e bytes descomprimidos |
 
 Uma proposta nova não deve receber status aceito só por estar neste diretório. Mudanças futuras registram contexto/evidência, consequências e referência ao ADR substituído. Detalhes de contrato ficam na arquitetura, evitando cópias divergentes.
