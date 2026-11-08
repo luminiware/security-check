@@ -70,7 +70,7 @@ async function runQuick(env,id) {
   }
 }
 export async function handle(request, env, ctx) {
-  const url = new URL(request.url); const path = url.pathname; const demo = localDemo(request, env); const quick = !demo && env.QUICK_CHECK_ENABLED === 'true' && env.QUICK_EGRESS_REVIEWED === 'true'; const now = Date.now();
+  const url = new URL(request.url); const path = url.pathname; const demo = localDemo(request, env); const quick = !demo && env.QUICK_CHECK_ENABLED === 'true' && env.QUICK_EGRESS_REVIEWED === 'true' && Boolean(env.TURNSTILE_SITEKEY && env.TURNSTILE_SECRET && env.TURNSTILE_HOSTNAME); const now = Date.now();
   if (path === '/api/v1/config' && request.method === 'GET') {
     const current = sessionToken(request, demo); const value = current || token();
     return response({ demo, admission: demo || quick, leads: demo, consent_version: LOCAL.consent,

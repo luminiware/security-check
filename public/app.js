@@ -10,7 +10,7 @@ const storage = { get(key) { try { return sessionStorage.getItem(key); } catch {
 let pending = null;
 try {
   const saved = JSON.parse(storage.get('sc-pending') || 'null');
-  if (saved && typeof saved.key === 'string' && typeof saved.identity === 'string' && typeof saved.body?.target === 'string' && typeof saved.body?.scenario === 'string') pending = saved;
+  if (saved && typeof saved.key === 'string' && typeof saved.identity === 'string' && typeof saved.body?.target === 'string' && (typeof saved.body?.scenario === 'string' || saved.body?.scenario === undefined)) pending = saved;
 } catch { storage.remove('sc-pending'); }
 let leadKey = crypto.randomUUID();
 function text(id, value) { $(id).textContent = value; }
