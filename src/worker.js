@@ -1,8 +1,9 @@
 import { CHECKS, LOCAL, Problem, VERSIONS, canonical, fail, hash, jsonBody, object, secretEqual, string, token } from './contracts.js';
 import { normalizeTarget, syntheticTarget } from './target.js';
-import { claim, createJob, finish, getJob, publicJob, reconcile, stmt } from './store.js';
+import { claim, completeQuick, createJob, finish, getJob, publicJob, reconcile, stmt } from './store.js';
 import { SCENARIOS, syntheticResult } from './synthetic.js';
 import { captureLead } from './leads.js';
+import { collectQuick } from './quick-check.js';
 
 const SECURITY = {
   'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff',
@@ -56,13 +57,25 @@ async function runSynthetic(env, id, withDelay = true) {
   await finish(env, id, 'local-synthetic', attempt.lease_token, syntheticResult(job));
 }
 
+async function runQuick(env,id) {
+  try {
+    const job=await getJob(env,id);
+    if (!job || job.scenario!=='quick') return;
+    await stmt(env,"UPDATE jobs SET state='executando' WHERE id=? AND scenario='quick' AND state='pendente'",id).run();
+    const checks=await collectQuick(job.target);
+    await completeQuick(env,id,checks);
+  } catch {
+    // Never send the target, raw response or internal failure into logs.
+    await stmt(env,"UPDATE jobs SET state='falhou',finished_at=?,dispatch_pending=0,failure_code='QUICK_COLLECTION_ERROR' WHERE id=? AND scenario='quick' AND state IN ('pendente','executando')",Date.now(),id).run();
+  }
+}
 export async function handle(request, env, ctx) {
-  const url = new URL(request.url); const path = url.pathname; const demo = localDemo(request, env); const now = Date.now();
+  const url = new URL(request.url); const path = url.pathname; const demo = localDemo(request, env); const quick = !demo && env.QUICK_CHECK_ENABLED === 'true'; const now = Date.now();
   if (path === '/api/v1/config' && request.method === 'GET') {
     const current = sessionToken(request, demo); const value = current || token();
-    return response({ demo, admission: demo, leads: demo, consent_version: LOCAL.consent,
-      turnstile_sitekey: demo ? null : env.TURNSTILE_SITEKEY || null,
-      message: demo ? 'Demonstração local com evidências sintéticas. Nenhum site é acessado.' : 'Análises temporariamente indisponíveis.',
+    return response({ demo, admission: demo || quick, leads: demo, consent_version: LOCAL.consent,
+      turnstile_sitekey: quick ? env.TURNSTILE_SITEKEY || null : null,
+      message: demo ? 'Demonstração local com evidências sintéticas. Nenhum site é acessado.' : quick ? 'Quick Check: HTTP, headers e DNS. Sem inspeção detalhada de TLS.' : 'Análises temporariamente indisponíveis.',
       scenarios: demo ? SCENARIOS : [] }, 200, current ? {} : { 'Set-Cookie': cookie(value, demo) });
   }
   if (path.startsWith('/internal/')) {
@@ -90,18 +103,20 @@ export async function handle(request, env, ctx) {
     object(body, ['target', 'turnstile_token', 'scenario'], ['target', 'turnstile_token']);
     const target = normalizeTarget(body.target);
     if (body.scenario !== undefined && !SCENARIOS.includes(body.scenario)) fail(400, 'INVALID_SCENARIO', 'Cenário inválido.');
-    const requestHash = await hash(canonical({ target, scenario: body.scenario || null }));
+    const scenario = demo ? body.scenario || 'complete' : 'quick';
+    const requestHash = await hash(canonical({ target, scenario }));
     const existing = await stmt(env, 'SELECT * FROM jobs WHERE session_hash=? AND idem_key=?', owner, idem).first();
     if (existing) {
       if (existing.request_hash !== requestHash) fail(409, 'IDEMPOTENCY_CONFLICT', 'Esta chave já foi usada com outros dados.');
       if (existing.retain_until <= now) fail(410, 'REPORT_REMOVED', 'Relatório removido por retenção.');
       return response(publicJob(existing), 202);
     }
-    // P2/P5/P6/P7 are not approved. No environment flag bypasses this gate.
-    if (!demo) fail(503, 'LAUNCH_REVIEW_REQUIRED', 'Análises temporariamente indisponíveis.', true);
-    if (!syntheticTarget(target)) fail(400, 'SYNTHETIC_TARGET_ONLY', 'Na demonstração, use example.com, example.org ou example.net.');
-    const { job, created } = await createJob(env, owner, idem, requestHash, target, body.scenario || 'complete', now);
-    if (created) ctx.waitUntil(runSynthetic(env, job.id).catch(() => { /* D1 reconciliation owns abandoned attempts. */ }));
+    if (!demo && !quick) fail(503, 'LAUNCH_REVIEW_REQUIRED', 'Análises temporariamente indisponíveis.', true);
+    if (demo && !syntheticTarget(target)) fail(400, 'SYNTHETIC_TARGET_ONLY', 'Na demonstração, use example.com, example.org ou example.net.');
+    if (!demo && body.scenario !== undefined) fail(400, 'INVALID_SCENARIO', 'Cenários sintéticos não são públicos.');
+    if (quick) await siteverify(request,env,body.turnstile_token);
+    const { job, created } = await createJob(env, owner, idem, requestHash, target, scenario, now);
+    if (created) ctx.waitUntil((demo ? runSynthetic(env,job.id) : runQuick(env,job.id)).catch(() => {}));
     return response(publicJob(job), 202);
   }
   const analysis = /^\/api\/v1\/analyses\/([a-f0-9-]{36})$/u.exec(path);
