@@ -66,3 +66,19 @@ test('DNS timeout causes no target request and no score',async()=>{
   assert.equal(makeQuickReport(checks,target,new Date().toISOString(),QUICK_VERSIONS).score,null);
   assert.equal(mock.calls.length,0);
 });
+
+test('a valid IPv4-only site with no AAAA Answer remains scannable',async()=>{
+  const calls=[];
+  const fetcher=async (url,init)=>{
+    calls.push(url);
+    if(url.includes('dns-query')){
+      const type=new URL(url).searchParams.get('type');
+      return type==='AAAA' ? Response.json({Status:0}) : dns([{type:1,data:'93.184.215.14'}]);
+    }
+    if(url.startsWith('http://'))return new Response(null,{status:301,headers:{location:'https://example.com/'}});
+    return new Response(null,{status:200,headers:{'x-content-type-options':'nosniff'}});
+  };
+  const checks=await collectQuick(target,{fetcher});
+  assert.equal(checks.find(c=>c.id==='dns').collection,'ok');
+  assert.ok(calls.some(u=>u.startsWith('https://example.com/')));
+});

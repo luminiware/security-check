@@ -34,9 +34,11 @@ async function dnsRecords(host, type, fetcher) {
   const res = await fetcher(url,{method:'GET',redirect:'manual',headers:{accept:'application/dns-json'},signal:AbortSignal.timeout(3000)});
   if (res.status!==200 || Number(res.headers.get('content-length')||'0')>MAX_DNS_BYTES) throw new Error('DNS_UNAVAILABLE');
   const packet = JSON.parse(await readLimited(res,MAX_DNS_BYTES));
-  if (!packet || packet.Status!==0 || !Array.isArray(packet.Answer) || packet.Answer.length>40) throw new Error('DNS_UNAVAILABLE');
+  if (!packet || packet.Status!==0 || (packet.Answer!==undefined && !Array.isArray(packet.Answer))) throw new Error('DNS_UNAVAILABLE');
+  const records=packet.Answer || [];
+  if (records.length>40) throw new Error('DNS_UNAVAILABLE');
   const addresses=[];
-  for (const answer of packet.Answer) {
+  for (const answer of records) {
     if (answer.type!==1 && answer.type!==28) continue;
     if (typeof answer.data!=='string') throw new Error('DNS_UNAVAILABLE');
     // Fail the entire set closed if any address is special/private.
