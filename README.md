@@ -66,3 +66,13 @@ Ficam fora: login, dashboard complexo, assinaturas, pagamentos, pentest, agentes
 ## Verificação
 
 Há testes de lógica, concorrência/durabilidade D1, rotas HTTP, integrações simuladas e jornada de navegador local. O teste Docker usa o upstream sem alterações, um digest candidato e somente fixtures no contêiner sem rede. Essas verificações não comprovam um guardião de rede de produção, execução nativa arm64, conta Cloudflare, CRM real ou viabilidade econômica. `git diff --check` continua disponível. O registro de evidência está em [fontes](docs/sources.md).
+
+## Quick Check (primeira etapa do lançamento)
+
+O modo `worker-quick` coleta metadados HTTP/HTTPS e DNS no Cloudflare Worker, sem Queue, VM, Docker ou Web-Check. Reutiliza a interface, o D1 (quotas, relatórios e retenção) e as recomendações existentes. O motor avançado e o executor permanecem no repositório, desligados. As notas dos dois modos **não são comparáveis**: Quick não atesta validade, cadeia, expiração nem cifras de certificados TLS. O contato comercial do Quick abre um e-mail para `contact@luminiware.com` com o domínio e as prioridades, sem gravar dados pessoais no formulário.
+
+**Não está autorizado a operar publicamente por padrão.** `QUICK_CHECK_ENABLED` e `QUICK_EGRESS_REVIEWED` continuam `false`. O segundo sinalizador deve ser definido somente depois de verificar, na conta e rede reais, que toda resolução/conexão/redirecionamento é restrita a destinos públicos. A consulta DNS preliminar reprova respostas mistas ou privadas, mas **não prende** o IP usado no `fetch`; em particular, DNS rebinding e diferenças entre resolução DoH e DNS de saída ainda são uma lacuna de segurança. Nunca habilitar para domínios arbitrários sem um controle de egress verificável na própria conexão, inclusive após redirects. A configuração Cloudflare, os limites da plataforma e uma revisão de política de privacidade e logs fazem parte da revisão de lançamento.
+
+O MVP leve pode ser lançado quando esse bloqueio for resolvido, o Turnstile estiver validado na conta, houver testes de ponta a ponta e custo/limites forem aceitos. É um caminho diferente do executor avançado e **não** aprova os gates G1–G9 desse executor.
+
+Arquitetura e riscos em [docs/quick-check.md](docs/quick-check.md).

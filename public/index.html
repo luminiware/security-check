@@ -14,7 +14,7 @@
       <div class="eyebrow"><span class="status-dot" aria-hidden="true"></span> UM PRIMEIRO OLHAR PARA O SEU SITE</div>
       <h1 id="hero-title">Entenda os sinais.<br><span>Saiba por onde começar.</span></h1>
       <p class="intro">Uma leitura de segurança do seu website, com explicações claras e prioridades para agir. Gratuito, sem login e sem contato obrigatório.</p>
-      <div class="scope"><span>HTTP e HTTPS</span><span>Certificado TLS</span><span>Headers</span><span>DNS</span></div>
+      <div class="scope"><span>HTTP e HTTPS</span><span>Verificações TLS na análise avançada</span><span>Headers</span><span>DNS</span></div>
     </section>
     <section class="workspace" aria-labelledby="analysis-title">
       <div class="workspace-head"><span class="step">01 / DIAGNÓSTICO</span><span class="small-tag">OBSERVAÇÕES EXTERNAS</span></div>
@@ -41,10 +41,10 @@
         <p id="score-message" class="notice" hidden></p><p id="disclaimer" class="boundary"></p>
         <div class="section-title"><h3>Por onde começar</h3><span>ATÉ 3 PRIORIDADES</span></div><div id="priorities"></div>
         <div id="limitations-wrap" hidden><h3>Limites desta análise</h3><ul id="limitations"></ul></div>
-        <details id="technical"><summary>Todas as verificações e evidências</summary><p class="muted">Versões da coleta e interpretação</p><pre id="report-versions" class="evidence"></pre><h3>Coleta por verificação</h3><p class="muted">DNS não recebe peso. Se sua coleta falhar, a nota não é exibida.</p><div id="collection-checks"></div><h3>Interpretação das regras</h3><div id="evaluations"></div></details>
+        <details id="technical"><summary>Todas as verificações e evidências</summary><p class="muted">Versões da coleta e interpretação</p><pre id="report-versions" class="evidence"></pre><h3>Coleta por verificação</h3><p class="muted">A análise Quick não inspeciona certificados TLS. DNS não recebe peso; falhas de coleta podem impedir a nota.</p><div id="collection-checks"></div><h3>Interpretação das regras</h3><div id="evaluations"></div></details>
         <div id="help"><div><span class="step">PRÓXIMO PASSO</span><h3>Precisa de ajuda para corrigir?</h3><p class="muted">Podemos avaliar o diagnóstico e conversar sobre o escopo. Seu resultado continua disponível aqui.</p></div><button id="open-lead" class="secondary">Pedir ajuda <span aria-hidden="true">↗</span></button></div>
         <form id="lead-form" hidden novalidate>
-          <p class="notice">Demonstração: use somente os dados sintéticos abaixo. Nada será enviado ao HubSpot.</p>
+          <p class="notice">Este formulário é exclusivo da demonstração local. No Quick Check, o contato é feito pelo endereço comercial da Luminiware.</p>
           <label for="lead-email">E-mail para contato</label><input id="lead-email" type="email" value="pessoa@example.com" maxlength="254" required>
           <label for="lead-name">Nome (opcional)</label><input id="lead-name" value="Pessoa de exemplo" maxlength="100" readonly>
           <label for="lead-intention">Como podemos ajudar? (opcional)</label><textarea id="lead-intention" maxlength="1000" readonly>Solicitação sintética de ajuda</textarea>

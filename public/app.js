@@ -3,6 +3,7 @@ const $ = id => document.getElementById(id);
 const terminal = new Set(['concluído', 'falhou', 'expirou']);
 const labels = { pendente: 'Na fila', executando: 'Executando verificações', concluído: 'Seu diagnóstico', falhou: 'Análise inconclusiva', expirou: 'Prazo da análise encerrado' };
 let config, job, timer, polling = false, pollDelay = 2000, generation = 0, normalized = null;
+let turnstileToken = '', turnstileWidget = null;
 const storage = { get(key) { try { return sessionStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { sessionStorage.setItem(key, value); } catch { /* Current page remains usable. */ } },
   remove(key) { try { sessionStorage.removeItem(key); } catch { /* Nothing persisted. */ } } };
@@ -36,8 +37,11 @@ $('target').addEventListener('input', normalizeInput);
 $('analysis-form').addEventListener('submit', async e => {
   e.preventDefault();
   if (!normalizeInput()) { text('target-error', 'Informe um domínio válido, sem caminhos ou parâmetros.'); $('target').focus(); return; }
-  const body = { target: normalized, turnstile_token: config.demo ? 'synthetic-no-network' : '', scenario: $('scenario').value };
-  const identity = JSON.stringify({ target: normalized, scenario: body.scenario });
+  if (!config.demo && !turnstileToken) { text('target-error','Conclua a validação antiabuso antes de analisar.'); return; }
+  const body = config.demo
+    ? { target: normalized, turnstile_token: 'synthetic-no-network', scenario: $('scenario').value }
+    : { target: normalized, turnstile_token: turnstileToken };
+  const identity = JSON.stringify({ target: normalized, scenario: body.scenario || 'quick' });
   if (!pending || pending.identity !== identity) {
     pending = { key: crypto.randomUUID(), body, identity }; storage.set('sc-pending', JSON.stringify(pending));
   }
@@ -48,6 +52,7 @@ $('analysis-form').addEventListener('submit', async e => {
     storage.set('sc-job', job.id); renderJob(job); $('job-heading').focus(); pollDelay = 2000; schedule();
   } catch (err) {
     if (err.status && err.status < 500 && err.status !== 429) forgetPending();
+    if (!config.demo && window.turnstile && turnstileWidget!==null) { window.turnstile.reset(turnstileWidget); turnstileToken=''; }
     text('target-error', err.message + (err.retryAfter ? ` Tente novamente em ${err.retryAfter} segundos.` : '') + (!err.status ? ' Você pode repetir: a mesma solicitação será retomada.' : ''));
   } finally { $('analyze-button').disabled = !config.admission; }
 });
@@ -115,8 +120,18 @@ function renderJob(value) {
   $('limitations').replaceChildren(...report.limitations.map(l => node('li', `${l.id}: ${l.reason} ${l.next_step}`))); show('limitations-wrap', report.limitations.length > 0);
   $('evaluations').replaceChildren(...report.evaluations.map(p => finding(p, null, true)));
   show('help', value.state === 'concluído');
+  if (value.state === 'concluído' && !value.synthetic) $('open-lead').textContent='Conversar sobre correção';
 }
-$('open-lead').addEventListener('click', () => { show('lead-form'); $('lead-email').focus(); });
+$('open-lead').addEventListener('click', () => {
+  if (config && !config.demo) {
+    const subject = 'Security Check — pedido de correção';
+    const details = job?.report?.priorities?.map(p=>p.id+': '+p.title).join('; ') || 'Avaliação do diagnóstico';
+    const body = 'Olá, gostaria de conversar sobre a correção de problemas encontrados no Security Check.\nDomínio: '+(job?.target||'')+'\nPontos observados: '+details+'\n';
+    window.location.href = 'mailto:contact@luminiware.com?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+    return;
+  }
+  show('lead-form'); $('lead-email').focus();
+});
 $('lead-form').addEventListener('submit', async e => {
   e.preventDefault(); text('lead-status', '');
   if (!$('lead-consent').checked || !$('lead-email').checkValidity()) { text('lead-status', 'Informe um e-mail válido e marque o consentimento.'); return; }
@@ -133,10 +148,24 @@ $('delete-analysis').addEventListener('click', async () => {
   try { await api('/api/v1/analyses/' + deletingId, { method: 'DELETE' }); if (job?.id === deletingId) { $('new-analysis').click(); text('target-error', 'Dados ativos deste diagnóstico excluídos.'); } }
   catch (err) { text('poll-error', err.message); }
 });
+async function initTurnstile(sitekey) {
+  if (!sitekey) return;
+  const script = document.createElement('script');
+  script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+  script.async=true;
+  script.onload=()=>{
+    if (!window.turnstile) return;
+    turnstileWidget=window.turnstile.render('#turnstile',{sitekey,action:'security-check',
+      callback:value=>{turnstileToken=value; text('target-error','');},
+      'expired-callback':()=>{turnstileToken='';},
+      'error-callback':()=>{turnstileToken=''; text('target-error','Não foi possível validar a solicitação.');}});
+  };
+  document.head.append(script);
+}
 async function init() {
   try {
-    config = await api('/api/v1/config'); text('mode-notice', config.message); $('analyze-button').disabled = !config.admission; show('scenario-field', config.demo);
-    if (pending) { $('target').value = pending.body.target; $('scenario').value = pending.body.scenario; normalizeInput(); text('target-error', 'Uma solicitação ficou sem confirmação. Clique em Analisar site para retomá-la com a mesma chave.'); }
+    config = await api('/api/v1/config'); text('mode-notice', config.message); $('analyze-button').disabled = !config.admission; show('scenario-field', config.demo); if (!config.demo && config.admission) initTurnstile(config.turnstile_sitekey);
+    if (pending) { $('target').value = pending.body.target; if(config.demo) $('scenario').value = pending.body.scenario; normalizeInput(); text('target-error', 'Uma solicitação ficou sem confirmação. Clique em Analisar site para retomá-la com a mesma chave.'); }
     const id = storage.get('sc-job');
     if (id && /^[a-f0-9-]{36}$/u.test(id)) { job = { id }; await poll(); }
   } catch { text('mode-notice', 'Não foi possível verificar a disponibilidade. Recarregue a página.'); }
