@@ -45,6 +45,9 @@ $('analysis-form').addEventListener('submit', async e => {
   if (!pending || pending.identity !== identity) {
     pending = { key: crypto.randomUUID(), body, identity }; storage.set('sc-pending', JSON.stringify(pending));
   }
+  // Turnstile tokens are single-use. Keep the idempotency key, but refresh the
+  // proof for a retry that did not create a job.
+  if (!config.demo) { pending.body.turnstile_token = turnstileToken; storage.set('sc-pending', JSON.stringify(pending)); }
   $('analyze-button').disabled = true; text('target-error', '');
   try {
     const accepted = await api('/api/v1/analyses', { method: 'POST', body: pending.body, key: pending.key }); forgetPending();
