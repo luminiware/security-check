@@ -9,7 +9,8 @@ function query(host, type = 1) {
   const suffix = Buffer.alloc(4); suffix.writeUInt16BE(type); suffix.writeUInt16BE(1,2); return Buffer.concat([header,name,suffix]);
 }
 test('firewall is default-deny, exact-peer, expiring and budgeted; input cannot inject nft syntax', () => {
-  const rules = firewallRules(policy()); assert.match(rules, /policy drop/u); assert.match(rules, /timeout 60000ms/u);
+  const now = Date.now(); const rules = firewallRules({ ...policy(), expires_at: now + 60000 }, now);
+  assert.match(rules, /policy drop/u); assert.match(rules, /timeout 60000ms/u);
   assert.match(rules, /until 61440 bytes/u); assert.match(rules, /meta length > 4096/u);
   assert.throws(() => firewallRules({ ...policy(), addresses: ['8.8.8.8; accept'] }));
   assert.throws(() => firewallRules({ ...policy(), expires_at: Date.now() - 1 }));
