@@ -1,5 +1,5 @@
-import { CHECKS, LOCAL, VERSIONS, canonical, fail, hash, token } from './contracts.js';
-import { makeReport, validateResult } from './report.js';
+import { CHECKS, LOCAL, VERSIONS, QUICK_VERSIONS, canonical, fail, hash, token } from './contracts.js';
+import { makeReport, makeQuickReport, validateResult } from './report.js';
 import { quotaDomains } from './domains.js';
 
 export const stmt = (env, sql, ...args) => env.DB.prepare(sql).bind(...args);
@@ -14,7 +14,7 @@ export function publicJob(job) {
     poll_after_ms: LOCAL.pollMs, status_url: '/api/v1/analyses/' + job.id,
     progress: { completed: job.result_json ? CHECKS.length : 0, total: CHECKS.length },
     report: job.result_json ? JSON.parse(job.result_json) : null, failure_code: job.failure_code,
-    synthetic: job.scenario !== null };
+    synthetic: job.scenario !== null && job.scenario !== 'quick' };
 }
 export async function createJob(env, session, idem, requestHash, target, scenario, now) {
   const id = crypto.randomUUID();
@@ -27,7 +27,7 @@ export async function createJob(env, session, idem, requestHash, target, scenari
       ...buckets.map((b, i) => stmt(env, 'INSERT OR IGNORE INTO quotas(bucket,expires_at,limit_value) VALUES(?,?,?)', b, expiry, limits[i])),
       stmt(env, `INSERT OR IGNORE INTO jobs(id,session_hash,idem_key,request_hash,target,scenario,state,created_at,deadline_at,retain_until,versions_json,session_bucket,domain_bucket,host_bucket,budget_bucket)
         VALUES(?,?,?,?,?,?,'pendente',?,?,?,?,?,?,?,?)`, id, session, idem, requestHash, target, scenario,
-      now, now + LOCAL.jobMs, now + LOCAL.retainMs, canonical(VERSIONS), ...buckets),
+      now, now + LOCAL.jobMs, now + LOCAL.retainMs, canonical(scenario === 'quick' ? QUICK_VERSIONS : VERSIONS), ...buckets),
     ]);
   } catch (error) {
     if (String(error).includes('BUDGET_EXHAUSTED')) fail(503, 'BUDGET_EXHAUSTED', 'Análises temporariamente indisponíveis.', true);
@@ -104,7 +104,21 @@ export async function reconcile(env, now = Date.now(), recoverSynthetic) {
   ]);
   const { results } = await stmt(env, `SELECT * FROM jobs WHERE dispatch_pending=1 AND dispatch_after<=? AND deadline_at>? AND state='pendente' LIMIT 20`, now, now).all();
   for (const job of results) {
+    if (job.scenario === 'quick') continue; // Quick Check never enqueues an advanced engine job.
     if (!job.scenario) await dispatch(env, job, now);
     else if (recoverSynthetic && env.DEMO === 'true') await recoverSynthetic(env, job.id, false);
   }
+}
+
+/** Persist a report produced by the trusted Worker collector (not an external callback). */
+export async function completeQuick(env, id, checks, now=Date.now()) {
+  const job=await getJob(env,id);
+  if(!job || job.scenario!=='quick' || !['pendente','executando'].includes(job.state)) fail(409,'QUICK_JOB_INVALID','Análise indisponível.');
+  const report=makeQuickReport(checks,job.target,new Date(now).toISOString(),JSON.parse(job.versions_json));
+  const state=report.useful?'concluído':'falhou';
+  const updated=await stmt(env,`UPDATE jobs SET state=?,finished_at=?,result_json=?,dispatch_pending=0,failure_code=?
+    WHERE id=? AND scenario='quick' AND state IN ('pendente','executando') AND deadline_at>?`,
+    state,now,canonical(report),report.useful?null:'NO_USEFUL_EVIDENCE',id,now).run();
+  if(updated.meta?.changes!==1) fail(409,'QUICK_JOB_EXPIRED','Análise expirada.');
+  return report;
 }

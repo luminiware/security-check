@@ -3,6 +3,10 @@ export const VERSIONS = Object.freeze({
   schema: '1', policy: 'network-v1-proposal', rules: 'score-v1-proposal',
   result: 'normalized-v2-proposal', engine: 'synthetic-only', digest: 'synthetic-only',
 });
+export const QUICK_VERSIONS = Object.freeze({
+  ...VERSIONS, policy: 'worker-public-only-v1-proposal', rules: 'quick-score-v1-proposal',
+  result: 'quick-result-v1-proposal', engine: 'worker-quick', digest: 'worker-quick-v1',
+});
 // Experimental local parameters. These are NOT approved production defaults.
 export const LOCAL = Object.freeze({ jobMs: 120000, leaseMs: 30000, retainMs: 86400000,
   maxAttempts: 2, sessionQuota: 6, domainQuota: 12, dailyBudget: 30,

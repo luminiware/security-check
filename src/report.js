@@ -155,3 +155,32 @@ export function makeReport(checks, target, observedAt, versions=VERSIONS) {
     priorities, evaluations, limitations,
     useful: checks.some(c => c.collection === 'ok' && c.evidence !== null), checks };
 }
+
+/**
+ * Quick Check has a separate, explicit denominator. TLS identity is *not*
+ * measured by a Worker HTTP fetch and cannot be silently scored as adequate.
+ * The resulting number is not comparable to the advanced engine's score.
+ */
+export function makeQuickReport(checks, target, observedAt, versions) {
+  const base = makeReport(checks,target,observedAt,versions);
+  const evaluations = base.evaluations.filter(rule => rule.id !== 'TLS-IDENTITY');
+  const eligible = evaluations.filter(rule => rule.evaluation !== 'inconclusivo');
+  const weight = eligible.reduce((sum,rule)=>sum+rule.weight,0);
+  const coverage = weight / 65;
+  const dns = checks.find(c=>c.id==='dns');
+  const dnsUsable = dns?.collection === 'ok' && Number.isInteger(dns.evidence?.public_address_count) && dns.evidence.public_address_count > 0;
+  const transport = eligible.some(rule=>rule.id==='HTTPS-TRANSPORT');
+  const deficit = eligible.reduce((sum,rule)=>sum+(rule.evaluation==='atenção'?rule.weight:0),0);
+  const score = coverage >= 0.8 && transport && dnsUsable
+    ? Math.max(0,Math.min(100,Math.round(100*(1-deficit/weight)))) : null;
+  const limitation = {id:'ESCOPO-TLS',reason:'O Quick Check não inspeciona validade, cadeia, expiração nem cifras do certificado TLS.',
+    next_step:'Uma análise mais profunda exige um executor com inspeção TLS.'};
+  return {...base, evaluations, priorities:base.priorities.filter(p=>p.id!=='TLS-IDENTITY'),
+    limitations:[...base.limitations.filter(l=>l.id!=='TLS-IDENTITY'),limitation],
+    coverage,score, rules_version:versions.rules,
+    label:coverage===1&&dnsUsable?'Quick Check':'Quick Check · Parcial',
+    score_message:score===null?'Quick Check sem evidência suficiente para calcular uma nota.':
+      'Nota apenas das verificações do Quick Check; não inclui inspeção do certificado TLS.',
+    disclaimer:'Diagnóstico passivo e limitado. TLS detalhado não foi verificado; a nota não é comparável à análise avançada e não garante segurança.',
+    useful:checks.some(c=>['headers','http-security'].includes(c.id)&&c.collection==='ok'&&c.evidence!==null)};
+}

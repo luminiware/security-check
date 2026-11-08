@@ -15,5 +15,5 @@
   "queues": { "producers": [{ "binding": "JOBS", "queue": "security-check-jobs" }] },
   "triggers": { "crons": ["* * * * *"] },
   "observability": { "enabled": true, "traces": { "enabled": true }, "logs": { "invocation_logs": false } },
-  "vars": { "DEMO": "true", "PUBLIC_ADMISSION": "false", "LEADS_ENABLED": "false" }
+  "vars": { "DEMO": "true", "PUBLIC_ADMISSION": "false", "LEADS_ENABLED": "false", "QUICK_CHECK_ENABLED": "false", "QUICK_EGRESS_REVIEWED": "false" }
 }
